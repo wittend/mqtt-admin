@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{% block title %}MQTT accounts{% endblock %}</title>
+<style>
+  :root { color-scheme: light dark; --edge: #8886; --bad: #b3261e; --good: #1b6e3c; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.4rem; } h2 { font-size: 1.1rem; margin-top: 2rem; }
+  form.stack label { display: block; margin: .75rem 0 .2rem; }
+  input, select, button { font: inherit; padding: .4rem .6rem; }
+  input[type=text], input[type=password] { width: 100%; max-width: 22rem; box-sizing: border-box; }
+  .error { color: var(--bad); } .notice { color: var(--good); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid var(--edge); padding: .4rem; text-align: left; vertical-align: top; }
+  details { margin: .2rem 0; } .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  .danger { color: var(--bad); } small { opacity: .75; }
+</style>
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

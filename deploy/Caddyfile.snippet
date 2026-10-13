@@ -1,0 +1,30 @@
+# Add to the Caddyfile on the Caddy container (<caddy-ip>). Replace the hostname and the app container's address.
+#
+# /account is public, so the app rate-limits it and it does nothing but password changes.
+# /admin is closed on this public name and served only on the tailnet (see below).
+accounts.example.com {
+	encode zstd gzip
+
+	# Stop oversized uploads here, before the app reads them. The CSV import is capped at 256 KB,
+	# and every other form on the site is a short login or password form.
+	request_body {
+		max_size 512KB
+	}
+
+	# /admin is closed on this public name. The admin page is served only on the tailnet, with
+	# `tailscale serve --bg --https=443 http://<app-ip>:8080` on the Caddy container.
+	# An address check here is not reliable: the router can make outside requests look like LAN traffic.
+	@admin path /admin /admin/*
+	handle @admin {
+		respond 404
+	}
+
+	handle {
+		reverse_proxy <app-ip>:8080
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+	}
+}

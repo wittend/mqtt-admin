@@ -1,0 +1,20 @@
+[Unit]
+Description=MQTT account portal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=mqtt-admin
+EnvironmentFile=/etc/mqtt-admin.env
+WorkingDirectory=/opt/mqtt-admin
+# Only the Caddy container (<caddy-ip>) may set X-Forwarded-For, so client addresses can't be spoofed.
+ExecStart=/opt/mqtt-admin/.venv/bin/uvicorn mqtt_admin.app:create_app --factory \
+  --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=<caddy-ip>
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

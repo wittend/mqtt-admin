@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}MQTT users{% endblock %}
+{% block body %}
+<div class="row">
+  <h1>MQTT users</h1>
+  <form method="post" action="/admin/logout">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <small>{{ admin }}</small> <button type="submit">Sign out</button>
+  </form>
+</div>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if error_list %}<ul class="error">{% for e in error_list %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+{% if notice %}<p class="notice">{{ notice }}</p>{% endif %}
+
+<table>
+  <tr><th>User</th><th>Roles</th><th>Actions</th></tr>
+  {% for c in clients %}
+  <tr>
+    <td>{{ c.username }}{% if c.textname %}<br><small>{{ c.textname }}</small>{% endif %}
+        {% if c.disabled %}<br><small class="danger">disabled</small>{% endif %}</td>
+    <td>{{ c.role_names | join(", ") or "none" }}</td>
+    <td>
+      {% if c.protected %}
+        <small>{{ "you" if c.username == admin else "managed outside the portal" }}</small>
+        {% if c.username == admin %}
+        <details><summary>Roles</summary>{% include "_roles.html" %}</details>
+        {% endif %}
+      {% else %}
+      <details><summary>Reset password</summary>
+        <form method="post" action="/admin/users/{{ c.username }}/password" class="row">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input name="password" type="password" autocomplete="new-password" minlength="{{ min_len }}" required>
+          <button type="submit">Set</button>
+        </form>
+      </details>
+      <details><summary>Roles</summary>{% include "_roles.html" %}</details>
+      <form method="post" action="/admin/users/{{ c.username }}/enabled" class="row">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="enabled" value="{{ '1' if c.disabled else '0' }}">
+        <button type="submit">{{ "Enable" if c.disabled else "Disable" }}</button>
+      </form>
+      <details><summary class="danger">Delete</summary>
+        <form method="post" action="/admin/users/{{ c.username }}/delete">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" class="danger">Delete {{ c.username }}</button>
+        </form>
+      </details>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>Add a user</h2>
+<form method="post" action="/admin/users" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="nu">Username</label>
+  <input id="nu" name="username" type="text" autocapitalize="none" required>
+  <label for="nt">Display name (optional)</label>
+  <input id="nt" name="textname" type="text">
+  <label for="np">Initial password</label>
+  <input id="np" name="password" type="password" autocomplete="new-password" minlength="{{ min_len }}" required>
+  <fieldset><legend>Roles</legend>
+    {% for r in roles %}<label><input type="checkbox" name="roles" value="{{ r }}"> {{ r }}</label> {% endfor %}
+  </fieldset>
+  <p><button type="submit">Create user</button></p>
+</form>
+
+<h2>Import users from CSV</h2>
+<p><small>Columns: <code>username,password,textname,roles</code>. Only username and password are required.
+Separate several roles with semicolons. Up to {{ max_rows }} users per file. Every row is checked first,
+and nothing is created unless the whole file is valid.</small></p>
+<form method="post" action="/admin/users/import" enctype="multipart/form-data" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input name="file" type="file" accept=".csv,text/csv" required>
+  <p><button type="submit">Import</button></p>
+</form>
+{% endblock %}

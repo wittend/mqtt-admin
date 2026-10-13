@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block body %}
+<h1>{{ title }}</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if notice %}<p class="notice">{{ notice }}</p>{% endif %}
+{% if not hide_form %}
+<form method="post" action="{{ action }}" class="stack">
+  <label for="u">Username</label>
+  <input id="u" name="username" type="text" autocomplete="username" autocapitalize="none" required autofocus>
+  <label for="p">Password</label>
+  <input id="p" name="password" type="password" autocomplete="current-password" required>
+  <p><button type="submit">Sign in</button></p>
+</form>
+<p><small>Use the same username and password your MQTT client uses.</small></p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+<form method="post" action="/admin/users/{{ c.username }}/roles">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for r in roles %}
+  <label><input type="checkbox" name="roles" value="{{ r }}" {{ "checked" if r in c.role_names }}> {{ r }}</label>
+  {% endfor %}
+  <button type="submit">Save roles</button>
+</form>
