@@ -4,6 +4,8 @@ A small web portal for Mosquitto users and passwords. Administrators add, disabl
 
 It talks to the broker through Mosquitto's dynamic-security plugin (dynsec), so it never touches files on the broker container and needs no access to the hypervisor.
 
+**Documentation:** https://mqtt-admin.readthedocs.io
+
 Full documentation (installation, guides and reference) is in [`docs/`](docs/). It is built with Sphinx and the Furo theme for Read the Docs.
 
 ## How it fits
