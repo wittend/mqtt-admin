@@ -11,7 +11,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .config import Settings
 from .dynsec import DynSec, DynSecError
 from .importer import MAX_BYTES, MAX_ROWS, parse_users_csv
-from .security import USERNAME_RE, LoginLimiter, new_csrf, password_problem
+from .security import ACL_TYPES, ROLE_RE, USERNAME_RE, LoginLimiter, acl_problem, new_csrf, password_problem
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 BAD_LOGIN = "Invalid username or password."
@@ -159,6 +159,10 @@ def create_app(settings: Settings | None = None, dynsec=None) -> FastAPI:
     def protected(username):
         return username == settings.svc_user
 
+    def builtin_role(rolename):
+        """Roles the portal may read but not change: the broker's own admin role and our marker role."""
+        return rolename in {"admin", settings.admin_role}
+
     @app.get("/admin/login")
     def admin_login_form(request: Request):
         if not admin_network_ok(request):
@@ -175,13 +179,25 @@ def create_app(settings: Settings | None = None, dynsec=None) -> FastAPI:
                           action="/admin/login", error=err)
         return redirect("/admin")
 
+    def role_rows():
+        rows = []
+        for name in sorted(dynsec.list_roles(), key=str.lower):
+            role = dynsec.get_role(name) or {}
+            rows.append({
+                "name": name,
+                "builtin": builtin_role(name),
+                "acls": sorted(role.get("acls", []), key=lambda a: (a["acltype"], a["topic"])),
+            })
+        return rows
+
     def admin_page(request, user, status=200, **ctx):
         clients = sorted(dynsec.list_clients(), key=lambda c: c["username"].lower())
         for c in clients:
             c["role_names"] = [r["rolename"] for r in c.get("roles", [])]
             c["protected"] = protected(c["username"]) or c["username"] == user
         return render(request, "admin.html", status=status, admin=user, clients=clients,
-                      roles=dynsec.list_roles(), max_rows=MAX_ROWS, **ctx)
+                      roles=dynsec.list_roles(), role_rows=role_rows(), acl_types=list(ACL_TYPES),
+                      default_acl=dynsec.get_default_acl(), max_rows=MAX_ROWS, **ctx)
 
     @app.get("/admin")
     def admin(request: Request):
@@ -286,6 +302,68 @@ def create_app(settings: Settings | None = None, dynsec=None) -> FastAPI:
             return refuse(request, user, "You cannot delete that account from here.")
         dynsec.delete_client(username)
         return done(request, f"Deleted {username}.")
+
+    @app.post("/admin/roles")
+    def admin_role_create(request: Request, csrf: str = Form(...), rolename: str = Form(...)):
+        user = guarded(request, csrf)
+        rolename = rolename.strip()
+        if not ROLE_RE.match(rolename):
+            return refuse(request, user, "Role names use letters, digits and . _ @ - only, up to 64.")
+        if rolename in dynsec.list_roles():
+            return refuse(request, user, f"The role {rolename} already exists.")
+        try:
+            dynsec.create_role(rolename)
+        except DynSecError as e:
+            return refuse(request, user, str(e))
+        return done(request, f"Created role {rolename}. Add topic rules to it below.")
+
+    @app.post("/admin/roles/{rolename}/rules")
+    def admin_rule_add(request: Request, rolename: str, csrf: str = Form(...), acltype: str = Form(...),
+                       topic: str = Form(...), allow: str = Form("1"), priority: int = Form(0)):
+        user = guarded(request, csrf)
+        if builtin_role(rolename):
+            return refuse(request, user, "That role is managed outside the portal.")
+        topic = topic.strip()
+        if problem := acl_problem(acltype, topic):
+            return refuse(request, user, problem)
+        if allow not in ("0", "1"):
+            return refuse(request, user, "Choose allow or deny.")
+        if not 0 <= priority <= 999:
+            return refuse(request, user, "Priority must be between 0 and 999.")
+        if dynsec.get_role(rolename) is None:
+            return refuse(request, user, f"The role {rolename} does not exist.")
+        try:
+            dynsec.add_role_acl(rolename, acltype, topic, allow == "1", priority)
+        except DynSecError as e:
+            return refuse(request, user, str(e))
+        verb = "Allowed" if allow == "1" else "Denied"
+        return done(request, f"{verb} {acltype} on {topic} for {rolename}.")
+
+    @app.post("/admin/roles/{rolename}/rules/remove")
+    def admin_rule_remove(request: Request, rolename: str, csrf: str = Form(...), acltype: str = Form(...),
+                          topic: str = Form(...)):
+        user = guarded(request, csrf)
+        if builtin_role(rolename):
+            return refuse(request, user, "That role is managed outside the portal.")
+        try:
+            dynsec.remove_role_acl(rolename, acltype, topic)
+        except DynSecError as e:
+            return refuse(request, user, str(e))
+        return done(request, f"Removed {acltype} on {topic} from {rolename}.")
+
+    @app.post("/admin/roles/{rolename}/delete")
+    def admin_role_delete(request: Request, rolename: str, csrf: str = Form(...)):
+        user = guarded(request, csrf)
+        if builtin_role(rolename):
+            return refuse(request, user, "That role is managed outside the portal.")
+        holders = [c["username"] for c in dynsec.list_clients()
+                   if any(r["rolename"] == rolename for r in c.get("roles", []))]
+        try:
+            dynsec.delete_role(rolename)
+        except DynSecError as e:
+            return refuse(request, user, str(e))
+        note = f" It was removed from {len(holders)} account{'' if len(holders) == 1 else 's'}." if holders else ""
+        return done(request, f"Deleted role {rolename}.{note}")
 
     @app.post("/admin/logout")
     def admin_logout(request: Request, csrf: str = Form(...)):

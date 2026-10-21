@@ -51,6 +51,79 @@
   {% endfor %}
 </table>
 
+<h2>Roles and topic rules</h2>
+<p><small>A role grants topics. A user can do only what one of their roles allows, and everything else is refused.
+Rules apply to the broker straight away.</small></p>
+<p><small>Broker default for each action, used when no rule matches:
+  {% for t, allowed in default_acl.items() %}<code>{{ t }}</code> <span class="{{ 'danger' if allowed else '' }}">{{ "allow" if allowed else "deny" }}</span>{% if not loop.last %}, {% endif %}{% endfor %}.
+  {% if default_acl.get("publishClientSend") or default_acl.get("subscribe") %}
+  <span class="danger">Publishing or subscribing is allowed by default, so role rules do not restrict those.</span>
+  {% endif %}</small></p>
+<table>
+  <tr><th>Role</th><th>Rules</th><th>Actions</th></tr>
+  {% for r in role_rows %}
+  <tr>
+    <td>{{ r.name }}{% if r.builtin %}<br><small>managed outside the portal</small>{% endif %}</td>
+    <td>
+      {% if r.acls %}
+      <ul>
+        {% for a in r.acls %}
+        <li><code>{{ a.acltype }}</code> {{ a.topic }}
+          <small>{{ "allow" if a.allow else "deny" }}{% if a.priority %}, priority {{ a.priority }}{% endif %}</small>
+          {% if not r.builtin %}
+          <form method="post" action="/admin/roles/{{ r.name }}/rules/remove" class="row">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="acltype" value="{{ a.acltype }}">
+            <input type="hidden" name="topic" value="{{ a.topic }}">
+            <button type="submit">Remove</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<small>no topic rules</small>{% endif %}
+    </td>
+    <td>
+      {% if not r.builtin %}
+      <details><summary>Add rule</summary>
+        <form method="post" action="/admin/roles/{{ r.name }}/rules" class="stack">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <label for="at-{{ loop.index }}">Rule type</label>
+          <select id="at-{{ loop.index }}" name="acltype">
+            {% for t in acl_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+          </select>
+          <label for="tp-{{ loop.index }}">Topic (+ and # are wildcards where the rule type allows them)</label>
+          <input id="tp-{{ loop.index }}" name="topic" type="text" autocapitalize="none" required>
+          <label for="al-{{ loop.index }}">Effect</label>
+          <select id="al-{{ loop.index }}" name="allow">
+            <option value="1">allow</option>
+            <option value="0">deny</option>
+          </select>
+          <label for="pr-{{ loop.index }}">Priority (0 to 999; higher wins)</label>
+          <input id="pr-{{ loop.index }}" name="priority" type="number" min="0" max="999" value="0">
+          <p><button type="submit">Add rule</button></p>
+        </form>
+      </details>
+      <details><summary class="danger">Delete role</summary>
+        <form method="post" action="/admin/roles/{{ r.name }}/delete">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" class="danger">Delete {{ r.name }}</button>
+        </form>
+      </details>
+      {% else %}<small>—</small>{% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h3>New role</h3>
+<form method="post" action="/admin/roles" class="row">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="nr">Role name</label>
+  <input id="nr" name="rolename" type="text" autocapitalize="none" required>
+  <button type="submit">Create role</button>
+</form>
+
 <h2>Add a user</h2>
 <form method="post" action="/admin/users" class="stack">
   <input type="hidden" name="csrf" value="{{ csrf }}">

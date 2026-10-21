@@ -86,6 +86,20 @@ class DynSec:
         return [r["rolename"] if isinstance(r, dict) else r
                 for r in self._command("listRoles", verbose=False).get("roles", [])]
 
+    def get_role(self, rolename: str) -> dict | None:
+        """The role with its topic rules, or None when it does not exist."""
+        try:
+            return self._command("getRole", rolename=rolename).get("role")
+        except DynSecError as e:
+            if "not found" in str(e).lower():
+                return None
+            raise
+
+    def get_default_acl(self) -> dict[str, bool]:
+        """The broker's default for each access type, used when no role rule matches."""
+        acls = self._command("getDefaultACLAccess").get("acls", [])
+        return {a["acltype"]: bool(a["allow"]) for a in acls}
+
     # --- writes ------------------------------------------------------------
     def create_client(self, username, password, roles=(), textname=""):
         self._command("createClient", username=username, password=password,
@@ -105,6 +119,19 @@ class DynSec:
 
     def remove_role(self, username, role):
         self._command("removeClientRole", username=username, rolename=role)
+
+    def create_role(self, rolename):
+        self._command("createRole", rolename=rolename)
+
+    def delete_role(self, rolename):
+        self._command("deleteRole", rolename=rolename)
+
+    def add_role_acl(self, rolename, acltype, topic, allow: bool, priority: int = 0):
+        self._command("addRoleACL", rolename=rolename, acltype=acltype, topic=topic,
+                      allow=allow, priority=priority)
+
+    def remove_role_acl(self, rolename, acltype, topic):
+        self._command("removeRoleACL", rolename=rolename, acltype=acltype, topic=topic)
 
     # --- credentials -------------------------------------------------------
     def verify_login(self, username: str, password: str) -> bool:
