@@ -39,12 +39,56 @@ Disable, enable or delete
 
 **Disable** blocks the account from connecting, and **Enable** restores it. Deleting an account removes it from the broker. A deleted account cannot be recovered; re-create it if needed.
 
-Roles
------
+Roles and topic rules
+---------------------
 
-Roles grant topic permissions on the broker. Each role appears as a checkbox on the user's **Roles** section. Changes apply when you save.
+A role is a named set of topic rules. A user can do only what one of their roles allows. Anything no rule allows is refused, as long as the broker's default for that action is **deny** (see below).
 
-``portal-admin`` is special: it grants access to this admin page and no broker topics. Remove it from an account to stop that account signing in as an administrator. The change takes effect on the account's next request.
+Each role appears as a checkbox on the user's **Roles** section, and in the **Roles and topic rules** section of the page, where you can:
+
+* **Create a role.** Enter a name using letters, digits and ``. _ @ -``, up to 64 characters. A new role has no rules until you add some.
+* **Add a rule.** Choose a rule type, enter a topic, choose allow or deny, and give a priority from 0 to 999. A higher priority wins when rules overlap. Rules take effect on the broker straight away.
+* **Remove a rule.** Each rule has its own Remove button.
+* **Delete a role.** This also removes the role from every account that holds it. The page reports how many accounts were affected.
+
+Rule types:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Type
+     - What it controls
+     - Wildcards
+   * - ``publishClientSend``
+     - Publishing to a topic
+     - ``+`` and ``#`` allowed
+   * - ``publishClientReceive``
+     - Receiving a message on a topic
+     - ``+`` and ``#`` allowed
+   * - ``subscribePattern``
+     - Subscribing to a topic pattern
+     - ``+`` and ``#`` allowed
+   * - ``subscribeLiteral``
+     - Subscribing to exactly one topic
+     - not allowed
+   * - ``unsubscribePattern`` / ``unsubscribeLiteral``
+     - Unsubscribing
+     - as for the subscribe type
+
+Topics follow MQTT rules. ``#`` must be the last level, ``+`` must fill a whole level (``sensors/+/data``), and topics that start with ``$`` are reserved for the broker and cannot be set here.
+
+Broker defaults
+^^^^^^^^^^^^^^^
+
+The **Roles and topic rules** section shows the broker's default for each action. The default applies when no rule matches. If publishing or subscribing is allowed by default, role rules do not restrict them, and the page says so. The broker should be set to deny for those two actions; the default is changed on the broker, not from the portal.
+
+Built-in roles
+^^^^^^^^^^^^^^
+
+Two roles are managed outside the portal and cannot be edited or deleted here:
+
+* ``admin``, the broker's own role for managing the broker, which the portal's service account uses.
+* ``portal-admin``, the marker role for access to this admin page. It grants no topics. Remove it from an account to stop that account signing in as an administrator. The change takes effect on the account's next request.
 
 Import users from a CSV file
 ----------------------------

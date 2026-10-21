@@ -43,5 +43,5 @@ as MQTT_SVC_PASSWORD. You can sign in to the admin page as '$ME'.
 Next, create the topic roles your publishers and dashboards need, for example:
   mosquitto_ctrl -u $SVC -P ... dynsec createRole sensor-publisher
   mosquitto_ctrl -u $SVC -P ... dynsec addRoleACL sensor-publisher publishClientSend 'sensors/#' allow 10
-Roles you create appear as checkboxes in the web UI.
+Roles you create appear as checkboxes in the web UI, where their rules can also be managed under "Roles and topic rules".
 EOF
